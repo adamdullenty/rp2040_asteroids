@@ -1,0 +1,23 @@
+# Arduino / Pico build output
+*.hex
+*.elf
+*.bin
+*.uf2
+*.map
+*.eep
+*.lss
+*.sym
+build/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Local tooling
+.venv/
+__pycache__/
