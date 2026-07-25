@@ -71,6 +71,7 @@ uint16_t score = 0;
 uint16_t highScore = 0;
 uint8_t lives = 3;
 uint8_t wave = 1;
+bool godMode = false;  // default off; toggle with BOOT on title
 
 unsigned long lastFrame = 0;
 unsigned long lastFire = 0;
@@ -253,7 +254,13 @@ void handleInput(float dt) {
   // Ignore start edges until lockout ends (avoids BOOTSEL/false edges skipping the title)
   bool acceptStart = millis() >= inputLockUntil;
 
-  if ((state == TITLE || state == DEAD) && acceptStart) {
+  if (state == TITLE && acceptStart) {
+    if (boot && !bootDown) {
+      godMode = !godMode;
+    } else if ((a && !aDown) || (b && !bDown) || (c && !cDown)) {
+      startGame();
+    }
+  } else if (state == DEAD && acceptStart) {
     if ((a && !aDown) || (b && !bDown) || (c && !cDown)) {
       startGame();
     }
@@ -326,8 +333,15 @@ void updateGame(float dt) {
     }
   }
 
-  // Ship vs rocks: disabled — 128x64 is too tight for fair collisions.
-  // Steer and shoot; rocks won't kill you.
+  // Ship vs rocks (skipped when god mode is on; default is off)
+  if (!godMode && ship.alive) {
+    for (uint8_t i = 0; i < MAX_ROCKS; i++) {
+      if (rocks[i].active && shipHitRock(rocks[i])) {
+        killShip();
+        break;
+      }
+    }
+  }
 
   if (activeRocks() == 0 && ship.alive) {
     wave++;
@@ -427,6 +441,10 @@ void drawHUD() {
   display.printf("%u", score);
   display.setCursor(50, 0);
   display.printf("W%u", wave);
+  if (godMode) {
+    display.setCursor(74, 0);
+    display.print(F("G"));
+  }
   // Lives as tiny ships
   for (uint8_t i = 0; i < lives; i++) {
     int16_t x = 110 + i * 6;
@@ -442,15 +460,17 @@ void drawFrame() {
 
   if (state == TITLE) {
     display.setTextSize(2);
-    display.setCursor(8, 10);
+    display.setCursor(8, 4);
     display.print(F("ASTEROIDS"));
     display.setTextSize(1);
-    display.setCursor(8, 36);
+    display.setCursor(8, 28);
     display.print(F("A/C rot  B thrust"));
-    display.setCursor(20, 46);
-    display.print(F("BOOT fires"));
-    display.setCursor(16, 56);
-    display.printf("Hi %u  press btn", highScore);
+    display.setCursor(8, 38);
+    display.print(F("BOOT=fire / god"));
+    display.setCursor(8, 48);
+    display.printf("Hi %u  GOD:%s", highScore, godMode ? "ON" : "OFF");
+    display.setCursor(8, 56);
+    display.print(F("A/B/C to play"));
     display.display();
     return;
   }
