@@ -34,12 +34,20 @@ Install libraries via **Sketch > Include Library > Manage Libraries**.
 
 ## Controls
 
-| Button | Action |
-|--------|--------|
-| **A** | Rotate left / menu up / start from title |
-| **C** | Rotate right / menu down / start from title |
-| **B** | Thrust / open options (title) / change option |
-| **BOOT** | Fire / back from options |
+| Button | Screen | Action |
+|--------|--------|--------|
+| **A** | Title | Start game |
+| **A** | Options | Move cursor up |
+| **A** | Play | Rotate left |
+| **C** | Title | Start game |
+| **C** | Options | Move cursor down |
+| **C** | Play | Rotate right |
+| **B** | Title | Open options |
+| **B** | Options | Change selected option |
+| **B** | Play | Thrust |
+| **BOOT** | Title | Start game |
+| **BOOT** | Options | Back to title |
+| **BOOT** | Play | Fire |
 
 ## Options
 
@@ -49,8 +57,9 @@ From the title screen, press **B** for options:
 |--------|--------|---------|
 | **Diff** | LOW / MED / HIGH rock speed | MED |
 | **God** | ON / OFF (invincible) | OFF |
+| **Spread** | ON / OFF (3-way shmup shot) | OFF |
 
-HIGH matches the original rock pace; MED and LOW are slower so dodging is realistic on 128×64.
+HIGH matches the original rock pace; MED and LOW are slower so dodging is realistic on 128×64. Spread fires a fan of three bullets each shot.
 
 ## Gameplay notes
 

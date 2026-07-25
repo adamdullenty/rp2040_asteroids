@@ -38,7 +38,13 @@ GameState state = TITLE;
 enum Difficulty : uint8_t { DIFF_LOW = 0, DIFF_MED = 1, DIFF_HIGH = 2 };
 Difficulty difficulty = DIFF_MED;  // default medium rock speed
 
-enum OptRow : uint8_t { OPT_DIFF = 0, OPT_GOD = 1, OPT_BACK = 2, OPT_COUNT = 3 };
+enum OptRow : uint8_t {
+  OPT_DIFF = 0,
+  OPT_GOD = 1,
+  OPT_SPREAD = 2,
+  OPT_BACK = 3,
+  OPT_COUNT = 4
+};
 uint8_t optCursor = 0;
 
 struct Ship {
@@ -66,7 +72,7 @@ struct Rock {
   bool active;
 };
 
-static const uint8_t MAX_BULLETS = 6;
+static const uint8_t MAX_BULLETS = 12;  // room for shmup-style 3-way spread volleys
 static const uint8_t MAX_ROCKS = 16;
 
 Ship ship;
@@ -77,7 +83,8 @@ uint16_t score = 0;
 uint16_t highScore = 0;
 uint8_t lives = 3;
 uint8_t wave = 1;
-bool godMode = false;  // default off; toggle in options
+bool godMode = false;     // default off; toggle in options
+bool spreadShot = false;  // 3-way shmup spread; toggle in options
 
 unsigned long lastFrame = 0;
 unsigned long lastFire = 0;
@@ -173,6 +180,8 @@ void activateOption() {
     cycleDifficulty();
   } else if (optCursor == OPT_GOD) {
     godMode = !godMode;
+  } else if (optCursor == OPT_SPREAD) {
+    spreadShot = !spreadShot;
   } else {
     state = TITLE;
   }
@@ -218,23 +227,37 @@ uint8_t activeRocks() {
   return n;
 }
 
+bool spawnBullet(float angle) {
+  for (uint8_t i = 0; i < MAX_BULLETS; i++) {
+    if (bullets[i].active) continue;
+    float nose = 6.0f;
+    float spd = 2.8f;
+    bullets[i].active = true;
+    bullets[i].x = ship.x + cosf(angle) * nose;
+    bullets[i].y = ship.y + sinf(angle) * nose;
+    bullets[i].vx = ship.vx + cosf(angle) * spd;
+    bullets[i].vy = ship.vy + sinf(angle) * spd;
+    bullets[i].expires = millis() + 900;
+    return true;
+  }
+  return false;
+}
+
 void fireBullet() {
   if (!ship.alive) return;
   if (millis() - lastFire < 180) return;
 
-  for (uint8_t i = 0; i < MAX_BULLETS; i++) {
-    if (bullets[i].active) continue;
-    float nose = 6.0f;
-    bullets[i].active = true;
-    bullets[i].x = ship.x + cosf(ship.angle) * nose;
-    bullets[i].y = ship.y + sinf(ship.angle) * nose;
-    float spd = 2.8f;
-    bullets[i].vx = ship.vx + cosf(ship.angle) * spd;
-    bullets[i].vy = ship.vy + sinf(ship.angle) * spd;
-    bullets[i].expires = millis() + 900;
-    lastFire = millis();
-    return;
+  bool fired = false;
+  if (spreadShot) {
+    // Shmup-style 3-way fan (~±18°)
+    const float fan = 18.0f * DEG;
+    fired |= spawnBullet(ship.angle - fan);
+    fired |= spawnBullet(ship.angle);
+    fired |= spawnBullet(ship.angle + fan);
+  } else {
+    fired = spawnBullet(ship.angle);
   }
+  if (fired) lastFire = millis();
 }
 
 void splitRock(uint8_t idx) {
@@ -486,11 +509,18 @@ void drawHUD() {
   display.printf("%u", score);
   display.setCursor(50, 0);
   display.printf("W%u", wave);
+  int16_t tagX = 68;
   if (godMode) {
-    display.setCursor(68, 0);
+    display.setCursor(tagX, 0);
     display.print(F("G"));
+    tagX += 8;
   }
-  display.setCursor(80, 0);
+  if (spreadShot) {
+    display.setCursor(tagX, 0);
+    display.print(F("S"));
+    tagX += 8;
+  }
+  display.setCursor(tagX, 0);
   display.print(diffLabel());
   // Lives as tiny ships
   for (uint8_t i = 0; i < lives; i++) {
@@ -532,11 +562,13 @@ void drawFrame() {
     display.setTextSize(1);
     display.setCursor(34, 0);
     display.print(F("OPTIONS"));
-    drawOptionsRow(OPT_DIFF, 16, F("Diff: "));
+    drawOptionsRow(OPT_DIFF, 12, F("Diff: "));
     display.print(diffLabel());
-    drawOptionsRow(OPT_GOD, 28, F("God: "));
+    drawOptionsRow(OPT_GOD, 22, F("God: "));
     display.print(godMode ? F("ON") : F("OFF"));
-    drawOptionsRow(OPT_BACK, 40, F("Back"));
+    drawOptionsRow(OPT_SPREAD, 32, F("Spread: "));
+    display.print(spreadShot ? F("ON") : F("OFF"));
+    drawOptionsRow(OPT_BACK, 42, F("Back"));
     display.setCursor(0, 56);
     display.print(F("A/C move B set"));
     display.display();
