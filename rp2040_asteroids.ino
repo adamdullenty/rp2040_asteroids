@@ -1,11 +1,11 @@
 // Asteroids for Adafruit Feather RP2040 + 128x64 OLED FeatherWing (SH1107)
 //
 // Controls:
-//   A     = rotate left
-//   C     = rotate right
-//   B     = thrust
-//   BOOT  = fire
-//   Any   = start / restart when on title or game over
+//   A     = rotate left / menu up
+//   C     = rotate right / menu down
+//   B     = thrust / menu change / open options (title)
+//   BOOT  = fire (in play) / back (options)
+//   A/C   = start / restart when on title or game over
 //
 // Libraries: Adafruit SH110x, Adafruit GFX, Adafruit NeoPixel, Adafruit BusIO
 // Board: Adafruit Feather RP2040 (Earle Philhower core)
@@ -32,8 +32,14 @@ static const float DEG = 0.0174533f;
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 Adafruit_NeoPixel pixel(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
-enum GameState : uint8_t { TITLE, PLAYING, DEAD };
+enum GameState : uint8_t { TITLE, OPTIONS, PLAYING, DEAD };
 GameState state = TITLE;
+
+enum Difficulty : uint8_t { DIFF_LOW = 0, DIFF_MED = 1, DIFF_HIGH = 2 };
+Difficulty difficulty = DIFF_MED;  // default medium rock speed
+
+enum OptRow : uint8_t { OPT_DIFF = 0, OPT_GOD = 1, OPT_BACK = 2, OPT_COUNT = 3 };
+uint8_t optCursor = 0;
 
 struct Ship {
   float x, y;
@@ -71,7 +77,7 @@ uint16_t score = 0;
 uint16_t highScore = 0;
 uint8_t lives = 3;
 uint8_t wave = 1;
-bool godMode = false;  // default off; toggle with BOOT on title
+bool godMode = false;  // default off; toggle in options
 
 unsigned long lastFrame = 0;
 unsigned long lastFire = 0;
@@ -137,10 +143,39 @@ void spawnRock(float x, float y, uint8_t size) {
   rocks[i].spin = ((int)(rp2040.hwrand32() % 9) - 4) * 0.025f;
   rocks[i].shapePhase = (rp2040.hwrand32() % 628) / 100.0f;
 
-  float speed = 0.35f + (3 - size) * 0.25f + wave * 0.03f;
+  // HIGH matches the original pace; MED/LOW scale down for dodging on 128x64
+  float speedScale = 1.0f;
+  if (difficulty == DIFF_MED) speedScale = 0.65f;
+  else if (difficulty == DIFF_LOW) speedScale = 0.4f;
+  float speed = (0.35f + (3 - size) * 0.25f + wave * 0.03f) * speedScale;
   float a = (rp2040.hwrand32() % 360) * DEG;
   rocks[i].vx = cosf(a) * speed;
   rocks[i].vy = sinf(a) * speed;
+}
+
+const char *diffLabel() {
+  if (difficulty == DIFF_LOW) return "LOW";
+  if (difficulty == DIFF_MED) return "MED";
+  return "HIGH";
+}
+
+void cycleDifficulty() {
+  difficulty = (Difficulty)((difficulty + 1) % 3);
+}
+
+void openOptions() {
+  optCursor = 0;
+  state = OPTIONS;
+}
+
+void activateOption() {
+  if (optCursor == OPT_DIFF) {
+    cycleDifficulty();
+  } else if (optCursor == OPT_GOD) {
+    godMode = !godMode;
+  } else {
+    state = TITLE;
+  }
 }
 
 void spawnWave() {
@@ -255,10 +290,20 @@ void handleInput(float dt) {
   bool acceptStart = millis() >= inputLockUntil;
 
   if (state == TITLE && acceptStart) {
-    if (boot && !bootDown) {
-      godMode = !godMode;
-    } else if ((a && !aDown) || (b && !bDown) || (c && !cDown)) {
+    if (b && !bDown) {
+      openOptions();
+    } else if ((a && !aDown) || (c && !cDown) || (boot && !bootDown)) {
       startGame();
+    }
+  } else if (state == OPTIONS && acceptStart) {
+    if (a && !aDown) {
+      optCursor = (optCursor + OPT_COUNT - 1) % OPT_COUNT;
+    } else if (c && !cDown) {
+      optCursor = (optCursor + 1) % OPT_COUNT;
+    } else if (b && !bDown) {
+      activateOption();
+    } else if (boot && !bootDown) {
+      state = TITLE;
     }
   } else if (state == DEAD && acceptStart) {
     if ((a && !aDown) || (b && !bDown) || (c && !cDown)) {
@@ -442,9 +487,11 @@ void drawHUD() {
   display.setCursor(50, 0);
   display.printf("W%u", wave);
   if (godMode) {
-    display.setCursor(74, 0);
+    display.setCursor(68, 0);
     display.print(F("G"));
   }
+  display.setCursor(80, 0);
+  display.print(diffLabel());
   // Lives as tiny ships
   for (uint8_t i = 0; i < lives; i++) {
     int16_t x = 110 + i * 6;
@@ -452,6 +499,12 @@ void drawHUD() {
     display.drawLine(x, 5, x + 4, 5, SH110X_WHITE);
     display.drawLine(x + 4, 5, x + 2, 1, SH110X_WHITE);
   }
+}
+
+void drawOptionsRow(uint8_t row, int16_t y, const __FlashStringHelper *label) {
+  display.setCursor(0, y);
+  display.print(optCursor == row ? F(">") : F(" "));
+  display.print(label);
 }
 
 void drawFrame() {
@@ -466,11 +519,26 @@ void drawFrame() {
     display.setCursor(8, 28);
     display.print(F("A/C rot  B thrust"));
     display.setCursor(8, 38);
-    display.print(F("BOOT=fire / god"));
+    display.print(F("BOOT fires"));
     display.setCursor(8, 48);
-    display.printf("Hi %u  GOD:%s", highScore, godMode ? "ON" : "OFF");
+    display.printf("Hi %u  %s", highScore, diffLabel());
     display.setCursor(8, 56);
-    display.print(F("A/B/C to play"));
+    display.print(F("A/C play  B opts"));
+    display.display();
+    return;
+  }
+
+  if (state == OPTIONS) {
+    display.setTextSize(1);
+    display.setCursor(34, 0);
+    display.print(F("OPTIONS"));
+    drawOptionsRow(OPT_DIFF, 16, F("Diff: "));
+    display.print(diffLabel());
+    drawOptionsRow(OPT_GOD, 28, F("God: "));
+    display.print(godMode ? F("ON") : F("OFF"));
+    drawOptionsRow(OPT_BACK, 40, F("Back"));
+    display.setCursor(0, 56);
+    display.print(F("A/C move B set"));
     display.display();
     return;
   }
@@ -509,7 +577,7 @@ void updateNeoPixel() {
   if (now - lastPixel < 30) return;
   lastPixel = now;
 
-  if (state == TITLE) {
+  if (state == TITLE || state == OPTIONS) {
     hue += 180;
     pixel.setPixelColor(0, pixel.gamma32(pixel.ColorHSV(hue, 255, 150)));
     pixel.show();

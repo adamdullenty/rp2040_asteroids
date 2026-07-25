@@ -36,12 +36,23 @@ Install libraries via **Sketch > Include Library > Manage Libraries**.
 
 | Button | Action |
 |--------|--------|
-| **A** | Rotate left |
-| **C** | Rotate right |
-| **B** | Thrust |
-| **BOOT** | Fire |
+| **A** | Rotate left / menu up / start from title |
+| **C** | Rotate right / menu down / start from title |
+| **B** | Thrust / open options (title) / change option |
+| **BOOT** | Fire / back from options |
+
+## Options
+
+From the title screen, press **B** for options:
+
+| Option | Values | Default |
+|--------|--------|---------|
+| **Diff** | LOW / MED / HIGH rock speed | MED |
+| **God** | ON / OFF (invincible) | OFF |
+
+HIGH matches the original rock pace; MED and LOW are slower so dodging is realistic on 128×64.
 
 ## Gameplay notes
 
-- Rocks do **not** collide with the ship as you'd expect from the original Asteroids. On a tiny 128×64 screen, it's too crowded for this and makes gameplay impossible
-- The onboard NeoPixel shows game status: rainbow on the title screen, green in play, blue-white while thrusting, red blink on game over.
+- With god mode off, rocks collide with the ship.
+- The onboard NeoPixel shows game status: rainbow on the title/options screens, green in play, blue-white while thrusting, red blink on game over.
