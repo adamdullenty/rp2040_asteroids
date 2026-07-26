@@ -2,11 +2,13 @@
 
 Classic Asteroids clone on a 128×64 OLED display, running on an Adafruit Feather RP2040.
 
+## Demo
+
+[![Gameplay demo](https://img.youtube.com/vi/KUAWZxHt1MU/hqdefault.jpg)](https://www.youtube.com/watch?v=KUAWZxHt1MU)
+
 ## Screenshot (mockup)
 
 ![Gameplay](docs/screenshot.png)
-
-_(Real screenshot + video TODO)_
 
 
 ## Hardware
@@ -65,3 +67,9 @@ HIGH matches the original rock pace; MED and LOW are slower so dodging is realis
 
 - With god mode off, rocks collide with the ship.
 - The onboard NeoPixel shows game status: rainbow on the title/options screens, green in play, blue-white while thrusting, red blink on game over.
+
+## Setup
+
+Feather RP2040 with OLED FeatherWing stacked, connected over USB.
+
+![Feather RP2040 + OLED FeatherWing](docs/setup.png)
